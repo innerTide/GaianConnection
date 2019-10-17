@@ -4,30 +4,42 @@
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableModel;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.text.MessageFormat;
 import java.util.Properties;
+import java.util.Vector;
 
-public class GaianConnection {
+
+public class GaianConnection extends Thread {
 
     public static final String DEFAULT_SELECT = "select * from mysql_employees_salary";
+    public static String resultString = "";
+    public static DemoUI demoUI;
+    public static TableModel tableModel;
 
     public static void main(String[] args) {
-        try {
-            final String gaianDBURL = getGaianDBURL(args[0]);
-            Connection connection = createGaianConnection(gaianDBURL);
 
-            createGaianStatement(args[1], connection);
-            closeGaianConnection(connection);
-        } catch (Exception except) {
-            except.printStackTrace();
-        }
+        // Initialize the UI
+        JFrame jFrame = new JFrame("DemoUI");
+        demoUI =  new DemoUI();
+        jFrame.setContentPane(demoUI.getRootPanel());
+        jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        jFrame.pack();
+        jFrame.setVisible(true);
+
+        demoUI.getButtonQuery().addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                new GaianConnection().start();
+            }
+        });
+
     }
 
     private static void createGaianStatement(String arg, Connection connection) throws SQLException {
@@ -42,6 +54,7 @@ public class GaianConnection {
         ResultSet resultSet1 = getResultSet(arg, statement);
 
         printResultSet(resultSet1);
+        tableModel = buildTableModel(resultSet1);
 
         resultSet1.close();
     }
@@ -102,10 +115,70 @@ public class GaianConnection {
         if (node.isArray()) {
             for (final JsonNode objNode : node) {
                 System.out.print(objNode + "\t");
+                resultString = resultString + objNode.toString() + "\t";
             }
         } else {
             System.out.print(node);
-        }
+            resultString = resultString + node.toString();        }
         System.out.println();
+        resultString = resultString + "\n";
+    }
+
+    /**
+     * When an object implementing interface <code>Runnable</code> is used
+     * to create a thread, starting the thread causes the object's
+     * <code>run</code> method to be called in that separately executing
+     * thread.
+     * <p>
+     * The general contract of the method <code>run</code> is that it may
+     * take any action whatsoever.
+     *
+     * @see Thread#run()
+     */
+    @Override
+    public void run() {
+        try {
+            demoUI.getLabelQueryResult().setVisible(false);
+            demoUI.getTableResult().setVisible(false);
+            //resultString = "";
+            final String gaianDBURL = getGaianDBURL(demoUI.getTextFieldUsername().getText());
+            Connection connection = createGaianConnection(gaianDBURL);
+            createGaianStatement(demoUI.getTextFieldQuery().getText(), connection);
+            closeGaianConnection(connection);
+            demoUI.getTableResult().setModel(tableModel);
+            demoUI.getTableResult().setVisible(true);
+            //demoUI.getLabelQueryResult().setText(resultString);
+        } catch (Exception except) {
+            demoUI.getLabelQueryResult().setVisible(true);
+            except.printStackTrace();
+            demoUI.getLabelQueryResult().setText(except.toString());
+        }
+    }
+
+
+    private static TableModel buildTableModel(ResultSet rs)
+            throws SQLException {
+
+        ResultSetMetaData metaData = rs.getMetaData();
+
+        // names of columns
+        Vector<String> columnNames = new Vector<String>();
+        int columnCount = metaData.getColumnCount();
+        for (int column = 1; column <= columnCount; column++) {
+            columnNames.add(metaData.getColumnName(column));
+        }
+
+        // data of the table
+        Vector<Vector<Object>> data = new Vector<Vector<Object>>();
+        while (rs.next()) {
+            Vector<Object> vector = new Vector<Object>();
+            for (int columnIndex = 1; columnIndex <= columnCount; columnIndex++) {
+                vector.add(rs.getObject(columnIndex));
+            }
+            data.add(vector);
+        }
+
+        return new DefaultTableModel(data, columnNames);
+
     }
 }
