@@ -133,10 +133,9 @@ public class GaianConnection extends Thread {
      */
     @Override
     public void run() {
-
+        demoUI.getLabelQueryResult().setVisible(false);
+        demoUI.getTableResult().setVisible(false);
         try {
-            demoUI.getLabelQueryResult().setVisible(false);
-            demoUI.getTableResult().setVisible(false);
             final String gaianDBURL = getGaianDBURL(demoUI.getTextFieldUsername().getText());
             Connection connection = createGaianConnection(gaianDBURL);
             createGaianStatement(demoUI.getTextFieldQuery().getText(), connection);
