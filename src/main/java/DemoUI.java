@@ -31,4 +31,5 @@ public class DemoUI {
     public JLabel getLabelQueryResult() {
         return labelQueryResult;
     }
+
 }

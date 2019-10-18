@@ -20,7 +20,6 @@ import java.util.Vector;
 public class GaianConnection extends Thread {
 
     public static final String DEFAULT_SELECT = "select * from mysql_employees_salary";
-    public static String resultString = "";
     public static DemoUI demoUI;
     public static TableModel tableModel;
 
@@ -28,12 +27,11 @@ public class GaianConnection extends Thread {
 
         // Initialize the UI
         JFrame jFrame = new JFrame("DemoUI");
-        demoUI =  new DemoUI();
+        demoUI = new DemoUI();
         jFrame.setContentPane(demoUI.getRootPanel());
         jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         jFrame.pack();
         jFrame.setVisible(true);
-
         demoUI.getButtonQuery().addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 new GaianConnection().start();
@@ -43,7 +41,7 @@ public class GaianConnection extends Thread {
     }
 
     private static void createGaianStatement(String arg, Connection connection) throws SQLException {
-        Statement statement = connection.createStatement();
+        Statement statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 
         queryGaian(arg, statement);
 
@@ -52,9 +50,9 @@ public class GaianConnection extends Thread {
 
     private static void queryGaian(String arg, Statement statement) throws SQLException {
         ResultSet resultSet1 = getResultSet(arg, statement);
-
-        printResultSet(resultSet1);
         tableModel = buildTableModel(resultSet1);
+        resultSet1.beforeFirst();
+        printResultSet(resultSet1);
 
         resultSet1.close();
     }
@@ -115,13 +113,11 @@ public class GaianConnection extends Thread {
         if (node.isArray()) {
             for (final JsonNode objNode : node) {
                 System.out.print(objNode + "\t");
-                resultString = resultString + objNode.toString() + "\t";
             }
         } else {
             System.out.print(node);
-            resultString = resultString + node.toString();        }
+        }
         System.out.println();
-        resultString = resultString + "\n";
     }
 
     /**
@@ -137,17 +133,16 @@ public class GaianConnection extends Thread {
      */
     @Override
     public void run() {
+
         try {
             demoUI.getLabelQueryResult().setVisible(false);
             demoUI.getTableResult().setVisible(false);
-            //resultString = "";
             final String gaianDBURL = getGaianDBURL(demoUI.getTextFieldUsername().getText());
             Connection connection = createGaianConnection(gaianDBURL);
             createGaianStatement(demoUI.getTextFieldQuery().getText(), connection);
             closeGaianConnection(connection);
             demoUI.getTableResult().setModel(tableModel);
             demoUI.getTableResult().setVisible(true);
-            //demoUI.getLabelQueryResult().setText(resultString);
         } catch (Exception except) {
             demoUI.getLabelQueryResult().setVisible(true);
             except.printStackTrace();
@@ -156,26 +151,25 @@ public class GaianConnection extends Thread {
     }
 
 
-    private static TableModel buildTableModel(ResultSet rs)
-            throws SQLException {
+    private static TableModel buildTableModel(ResultSet rs) throws SQLException {
 
         ResultSetMetaData metaData = rs.getMetaData();
 
-        // names of columns
+        // process names of columns
         Vector<String> columnNames = new Vector<String>();
         int columnCount = metaData.getColumnCount();
         for (int column = 1; column <= columnCount; column++) {
-            columnNames.add(metaData.getColumnName(column));
+            columnNames.addElement(metaData.getColumnName(column));
         }
 
-        // data of the table
-        Vector<Vector<Object>> data = new Vector<Vector<Object>>();
+        // process data of the table
+        Vector<Vector> data = new Vector<Vector>();
         while (rs.next()) {
-            Vector<Object> vector = new Vector<Object>();
+            Vector<String> vector = new Vector<String>();
             for (int columnIndex = 1; columnIndex <= columnCount; columnIndex++) {
-                vector.add(rs.getObject(columnIndex));
+                vector.addElement(rs.getObject(columnIndex).toString());
             }
-            data.add(vector);
+            data.addElement(vector);
         }
 
         return new DefaultTableModel(data, columnNames);
