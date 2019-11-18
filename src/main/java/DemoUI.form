@@ -60,7 +60,7 @@
           </grid>
         </constraints>
         <properties>
-          <text value="select * from DB_EMPLOYEE"/>
+          <text value="select * from DB_EMPSALARYANALYSIS"/>
         </properties>
       </component>
       <component id="76416" class="javax.swing.JButton" binding="buttonQuery">
